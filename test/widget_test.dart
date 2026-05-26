@@ -5,7 +5,7 @@ import 'package:calculori/main.dart';
 void main() {
   testWidgets('Counter value smoke test', (WidgetTester tester) async {
     // Cambiamos const MyApp() por const CalculOriApp()
-    await tester.pumpWidget(const CalculOriApp());
+    await tester.pumpWidget(const CalculOriApp(isFirstTime: false));
 
     // Verificamos que la app inicie buscando un elemento de tu HomeScreen
     expect(find.text('CalculOri'), findsWidgets);

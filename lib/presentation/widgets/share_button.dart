@@ -30,9 +30,11 @@ class ShareResultButton extends StatelessWidget {
 
         final textToShare = '¡Mirá el precio de $productName! Base: \$${basePrice.toStringAsFixed(0)}';
         
-        await Share.shareXFiles(
-          [XFile(imagePath.path)],
-          text: textToShare,
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(imagePath.path)],
+            text: textToShare,
+          ),
         );
       }
     } catch (e) {

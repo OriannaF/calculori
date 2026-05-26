@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:calculori/presentation/providers/calculator_provider.dart';
 import 'package:calculori/presentation/widgets/share_button.dart';
+import 'package:calculori/core/utils/price_calculator.dart';
 
 // Top-level variable so both the home screen and main tab can access it for now
 List<Map<String, dynamic>> globalHistorial = [];
@@ -48,18 +49,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-<<<<<<< HEAD
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-=======
-class _HomeScreenState extends State<HomeScreen> {
-  // ---- VALORES INICIALES (ESTADO DE LA APLICACIÓN) ----
   String storeName = '';
-  double costoOriginal = 1500.0;
-  String nombreProducto = 'Nombre del Producto';
-  double multiplicador = 2.0;
-  String tipoRedondeo = 'Sin redondeo';
-
->>>>>>> f9fd89b8d688ebb204181752cb3b6d442a4343f1
   late TextEditingController _costoController;
   late TextEditingController _nombreController;
   final FocusNode _costoFocusNode = FocusNode();
@@ -105,17 +96,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-<<<<<<< HEAD
-    
+
+    String savedStoreName = prefs.getString('storeName') ?? '';
     double savedMultiplier = prefs.getDouble('multiplicador') ?? 2.0;
     String savedRounding = prefs.getString('redondeo') ?? 'Sin redondeo';
     List<Map<String, dynamic>> savedMethods = List.from(globalMetodosCobro);
-=======
-    setState(() {
-      multiplicador = prefs.getDouble('multiplicador') ?? 2.0;
-      tipoRedondeo = prefs.getString('redondeo') ?? 'Sin redondeo';
-      storeName = prefs.getString('storeName') ?? '';
->>>>>>> f9fd89b8d688ebb204181752cb3b6d442a4343f1
 
     final String? metodosJson = prefs.getString('metodosCobro');
     if (metodosJson != null) {
@@ -137,6 +122,10 @@ class _HomeScreenState extends State<HomeScreen> {
         }).toList();
       });
     }
+
+    setState(() {
+      storeName = savedStoreName;
+    });
 
     // Sync loaded settings to Riverpod state
     ref.read(calculatorProvider.notifier).updateSettings(savedMultiplier, savedRounding, savedMethods);
