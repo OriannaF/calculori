@@ -46,6 +46,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   // ---- VALORES INICIALES (ESTADO DE LA APLICACIÓN) ----
+  String storeName = '';
   double costoOriginal = 1500.0;
   String nombreProducto = 'Nombre del Producto';
   double multiplicador = 2.0;
@@ -95,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       multiplicador = prefs.getDouble('multiplicador') ?? 2.0;
       tipoRedondeo = prefs.getString('redondeo') ?? 'Sin redondeo';
+      storeName = prefs.getString('storeName') ?? '';
 
       final String? metodosJson = prefs.getString('metodosCobro');
       if (metodosJson != null) {
@@ -182,6 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Header Gradient recibe el costo y el manejador de la navegación
             HeaderGradientSection(
+              storeName: storeName,
               costoController: _costoController,
               nombreController: _nombreController,
               costoFocusNode: _costoFocusNode,
@@ -262,6 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 // --- 1. SECCIÓN SUPERIOR: GRADIENTE, ORBES, LOGO Y PRECIO ---
 class HeaderGradientSection extends StatelessWidget {
+  final String storeName;
   final TextEditingController costoController;
   final TextEditingController nombreController;
   final FocusNode costoFocusNode;
@@ -271,6 +275,7 @@ class HeaderGradientSection extends StatelessWidget {
 
   const HeaderGradientSection({
     super.key,
+    required this.storeName,
     required this.costoController,
     required this.nombreController,
     required this.costoFocusNode,
@@ -352,12 +357,12 @@ class HeaderGradientSection extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Row(
-                      children: const [
-                        Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
-                        SizedBox(width: 8),
+                      children: [
+                        const Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
+                        const SizedBox(width: 8),
                         Text(
-                          'CalculOri',
-                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                          storeName.isNotEmpty ? '¡Hola! $storeName' : 'CalculOri',
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),

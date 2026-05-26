@@ -32,6 +32,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   
   bool _useCard = true;
   final TextEditingController _cardPercentController = TextEditingController(text: '35');
+  
+  bool _useWholesale = true;
+  final TextEditingController _wholesalePercentController = TextEditingController(text: '-10');
 
   @override
   void dispose() {
@@ -42,6 +45,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _cashPercentController.dispose();
     _transferPercentController.dispose();
     _cardPercentController.dispose();
+    _wholesalePercentController.dispose();
     super.dispose();
   }
 
@@ -93,6 +97,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         "nombre": "Tarjeta",
         "porcentaje": double.tryParse(_cardPercentController.text) ?? 35.0,
         "icono": "tarjeta"
+      });
+    }
+    if (_useWholesale) {
+      initialMethods.add({
+        "id": "${DateTime.now().millisecondsSinceEpoch}_4",
+        "nombre": "Mayorista",
+        "porcentaje": double.tryParse(_wholesalePercentController.text) ?? -10.0,
+        "icono": "etiqueta"
       });
     }
 
@@ -527,6 +539,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   _buildPaymentToggleCard('Transferencia', Icons.swap_horiz_rounded, _useTransfer, (v) => setState(() => _useTransfer = v), _transferPercentController),
                   const SizedBox(height: 12),
                   _buildPaymentToggleCard('Tarjeta', Icons.credit_card_rounded, _useCard, (v) => setState(() => _useCard = v), _cardPercentController),
+                  const SizedBox(height: 12),
+                  _buildPaymentToggleCard('Precio Mayorista', Icons.local_offer_rounded, _useWholesale, (v) => setState(() => _useWholesale = v), _wholesalePercentController, 'Descuento (%)'),
                 ],
               ),
             ),
@@ -536,7 +550,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  Widget _buildPaymentToggleCard(String title, IconData icon, bool isEnabled, ValueChanged<bool> onChanged, TextEditingController pctController) {
+  Widget _buildPaymentToggleCard(String title, IconData icon, bool isEnabled, ValueChanged<bool> onChanged, TextEditingController pctController, [String inputLabel = 'Recargo (%)']) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       padding: const EdgeInsets.all(16),
@@ -576,7 +590,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Recargo (%)', style: TextStyle(fontSize: 14, color: Color(0xFF5A665D))),
+                Text(inputLabel, style: const TextStyle(fontSize: 14, color: Color(0xFF5A665D))),
                 Container(
                   width: 80,
                   decoration: BoxDecoration(
