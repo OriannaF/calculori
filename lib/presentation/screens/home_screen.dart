@@ -4,6 +4,10 @@ import 'package:calculori/presentation/screens/settings_screen.dart';
 import 'package:calculori/presentation/screens/history_screen.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:screenshot/screenshot.dart';
+import 'package:calculori/presentation/providers/calculator_provider.dart';
+import 'package:calculori/presentation/widgets/share_button.dart';
 
 // Top-level variable so both the home screen and main tab can access it for now
 List<Map<String, dynamic>> globalHistorial = [];
@@ -37,30 +41,27 @@ String formatCurrency(num value) {
   return '\$${isNegative ? '-' : ''}$result';
 }
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  // ---- VALORES INICIALES (ESTADO DE LA APLICACIÓN) ----
-  double costoOriginal = 1500.0;
-  String nombreProducto = 'Nombre del Producto';
-  double multiplicador = 2.0;
-  String tipoRedondeo = 'Sin redondeo';
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   late TextEditingController _costoController;
   late TextEditingController _nombreController;
   final FocusNode _costoFocusNode = FocusNode();
   final FocusNode _nombreFocusNode = FocusNode();
+  final ScreenshotController _screenshotController = ScreenshotController();
 
   @override
   void initState() {
     super.initState();
-    _costoController = TextEditingController(text: costoOriginal.toStringAsFixed(0));
-    _nombreController = TextEditingController(text: nombreProducto);
+    // Initialize controllers with Riverpod default state
+    final initialState = ref.read(calculatorProvider);
+    _costoController = TextEditingController(text: initialState.cost.toStringAsFixed(0));
+    _nombreController = TextEditingController(text: initialState.productName.isEmpty ? 'Nombre del Producto' : initialState.productName);
     
     _nombreFocusNode.addListener(() {
       if (_nombreFocusNode.hasFocus) {
@@ -70,6 +71,9 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } else if (_nombreController.text.trim().isEmpty) {
         _nombreController.text = 'Nombre del Producto';
+        ref.read(calculatorProvider.notifier).updateProductName('');
+      } else {
+        ref.read(calculatorProvider.notifier).updateProductName(_nombreController.text);
       }
     });
 
@@ -81,9 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } else if (_costoController.text.trim().isEmpty) {
         _costoController.text = '0';
-        setState(() {
-          costoOriginal = 0.0;
-        });
+        ref.read(calculatorProvider.notifier).updateCost(0.0);
       }
     });
 
@@ -92,36 +94,42 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      multiplicador = prefs.getDouble('multiplicador') ?? 2.0;
-      tipoRedondeo = prefs.getString('redondeo') ?? 'Sin redondeo';
+    
+    double savedMultiplier = prefs.getDouble('multiplicador') ?? 2.0;
+    String savedRounding = prefs.getString('redondeo') ?? 'Sin redondeo';
+    List<Map<String, dynamic>> savedMethods = List.from(globalMetodosCobro);
 
-      final String? metodosJson = prefs.getString('metodosCobro');
-      if (metodosJson != null) {
-        final List<dynamic> decoded = jsonDecode(metodosJson);
-        globalMetodosCobro = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
-      }
+    final String? metodosJson = prefs.getString('metodosCobro');
+    if (metodosJson != null) {
+      final List<dynamic> decoded = jsonDecode(metodosJson);
+      savedMethods = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      globalMetodosCobro = savedMethods;
+    }
 
-      final String? historialJson = prefs.getString('historial');
-      if (historialJson != null) {
-        final List<dynamic> decoded = jsonDecode(historialJson);
+    final String? historialJson = prefs.getString('historial');
+    if (historialJson != null) {
+      final List<dynamic> decoded = jsonDecode(historialJson);
+      setState(() {
         globalHistorial = decoded.map((e) {
-          // Convert from JSON to Map<String, dynamic> and restore Colors
           final item = Map<String, dynamic>.from(e);
           item['methodColor'] = Color(item['methodColorValue'] ?? 0xFF3D4A3F);
           item['methodBg'] = Color(item['methodBgValue'] ?? 0xFFE6E8EA);
           item['icon'] = Icons.shopping_bag_outlined;
           return item;
         }).toList();
-      }
-    });
+      });
+    }
+
+    // Sync loaded settings to Riverpod state
+    ref.read(calculatorProvider.notifier).updateSettings(savedMultiplier, savedRounding, savedMethods);
+    ref.read(calculatorProvider.notifier).updateCost(1500.0); // Default placeholder
   }
 
-  Future<void> _saveSettings() async {
+  Future<void> _saveSettings(double multiplicador, String tipoRedondeo, List<Map<String, dynamic>> metodos) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('multiplicador', multiplicador);
     await prefs.setString('redondeo', tipoRedondeo);
-    await prefs.setString('metodosCobro', jsonEncode(globalMetodosCobro));
+    await prefs.setString('metodosCobro', jsonEncode(metodos));
   }
 
   Future<void> _saveHistorial() async {
@@ -149,24 +157,16 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  double _applyRounding(double value, String roundingType) {
-    if (roundingType == '500') {
-      return (value / 500).ceil() * 500.0;
-    } else if (roundingType == '1000') {
-      return (value / 1000).ceil() * 1000.0;
-    } else if (roundingType == 'Cientos') {
-      return (value / 100).ceil() * 100.0;
-    }
-    return value; // 'Sin redondeo'
-  }
-
   @override
   Widget build(BuildContext context) {
-    // FÓRMULAS MATEMÁTICAS EN TIEMPO REAL
-    double baseMultiplicador = _applyRounding(costoOriginal * multiplicador, tipoRedondeo);
-    List<Map<String, dynamic>> metodosCalculados = globalMetodosCobro.map((metodo) {
+    // Watch the Riverpod state
+    final calcState = ref.watch(calculatorProvider);
+    final baseMultiplicador = calcState.basePrice;
+    
+    List<Map<String, dynamic>> metodosCalculados = calcState.paymentMethods.map((metodo) {
       double porcentaje = (metodo['porcentaje'] as num).toDouble();
-      double total = _applyRounding(baseMultiplicador * (1 + porcentaje / 100), tipoRedondeo);
+      // Price calculation logic uses the utils now
+      double total = PriceCalculator.calculateMethodPrice(baseMultiplicador, porcentaje, calcState.roundingType);
       return {
         'nombre': metodo['nombre'],
         'porcentaje': porcentaje,
@@ -180,34 +180,35 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // Header Gradient recibe el costo y el manejador de la navegación
             HeaderGradientSection(
               costoController: _costoController,
               nombreController: _nombreController,
               costoFocusNode: _costoFocusNode,
               nombreFocusNode: _nombreFocusNode,
               onCostoChanged: (value) {
-                setState(() {
-                  costoOriginal = double.tryParse(value) ?? 0.0;
-                });
+                ref.read(calculatorProvider.notifier).updateCost(double.tryParse(value) ?? 0.0);
               },
               onSettingsPressed: () async {
-                // Esperamos a que el usuario configure y toque "Guardar"
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => SettingsScreen(
-                    initialMultiplier: multiplicador,
-                    initialRounding: tipoRedondeo,
+                    initialMultiplier: calcState.multiplier,
+                    initialRounding: calcState.roundingType,
+                    initialPaymentMethods: calcState.paymentMethods,
                   )),
                 );
 
-                // Si volvió trayendo un mapa con nuevos datos, refrescamos la UI
                 if (result != null && result is Map) {
-                  setState(() {
-                    multiplicador = (result['multiplicador'] as num?)?.toDouble() ?? multiplicador;
-                    tipoRedondeo = result['redondeo'] as String? ?? tipoRedondeo;
-                  });
-                  _saveSettings();
+                  final newMult = (result['multiplicador'] as num?)?.toDouble() ?? calcState.multiplier;
+                  final newRound = result['redondeo'] as String? ?? calcState.roundingType;
+                  List<Map<String, dynamic>> newMethods = calcState.paymentMethods;
+                  if (result.containsKey('metodosCobro')) {
+                    newMethods = List<Map<String, dynamic>>.from(result['metodosCobro']);
+                    globalMetodosCobro = newMethods; // Keep global in sync temporarily
+                  }
+                  
+                  ref.read(calculatorProvider.notifier).updateSettings(newMult, newRound, newMethods);
+                  _saveSettings(newMult, newRound, newMethods);
                 }
               },
             ),
@@ -216,34 +217,50 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pasamos todos los precios calculados dinámicamente a la tarjeta
-                  PaymentMethodsCard(
-                    base: baseMultiplicador,
-                    metodosCalculados: metodosCalculados,
-                    multiplicador: multiplicador,
-                    onSave: () {
-                      setState(() {
-                        globalHistorial.insert(0, {
-                          'title': _nombreController.text.isNotEmpty ? _nombreController.text : 'Sin Nombre',
-                          'time': 'Ahora',
-                          'price': formatCurrency(baseMultiplicador),
-                          'method': 'Calculado',
-                          'methodColor': const Color(0xFF3D4A3F),
-                          'methodBg': const Color(0xFFE6E8EA),
-                          'icon': Icons.shopping_bag_outlined,
-                          // For compatibility with history, just pass the first three if available
-                          'cashPrice': metodosCalculados.isNotEmpty ? formatCurrency(metodosCalculados[0]['total'] as num) : '\$0',
-                          'transferPrice': metodosCalculados.length > 1 ? formatCurrency(metodosCalculados[1]['total'] as num) : '\$0',
-                          'cardPrice': metodosCalculados.length > 2 ? formatCurrency(metodosCalculados[2]['total'] as num) : '\$0',
+                  // Wrap the card in Screenshot widget
+                  Screenshot(
+                    controller: _screenshotController,
+                    child: PaymentMethodsCard(
+                      base: baseMultiplicador,
+                      metodosCalculados: metodosCalculados,
+                      multiplicador: calcState.multiplier,
+                      onSave: () {
+                        setState(() {
+                          globalHistorial.insert(0, {
+                            'title': _nombreController.text.isNotEmpty ? _nombreController.text : 'Sin Nombre',
+                            'time': 'Ahora',
+                            'price': formatCurrency(baseMultiplicador),
+                            'method': 'Calculado',
+                            'methodColor': const Color(0xFF3D4A3F),
+                            'methodBg': const Color(0xFFE6E8EA),
+                            'icon': Icons.shopping_bag_outlined,
+                            'cashPrice': metodosCalculados.isNotEmpty ? formatCurrency(metodosCalculados[0]['total'] as num) : '\$0',
+                            'transferPrice': metodosCalculados.length > 1 ? formatCurrency(metodosCalculados[1]['total'] as num) : '\$0',
+                            'cardPrice': metodosCalculados.length > 2 ? formatCurrency(metodosCalculados[2]['total'] as num) : '\$0',
+                          });
+                          _saveHistorial();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Guardado en historial')),
+                          );
                         });
-                        _saveHistorial();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Guardado en historial')),
-                        );
-                      });
-                    },
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // Share Button Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ShareResultButton(
+                        screenshotController: _screenshotController,
+                        productName: _nombreController.text.isNotEmpty ? _nombreController.text : 'Mi Producto',
+                        basePrice: baseMultiplicador,
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
+                  
                   RecentHistoryHeader(
                     historial: globalHistorial, 
                     onReturn: () => setState(() {}),

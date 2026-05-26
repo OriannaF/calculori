@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Importamos las pantallas de tu proyecto
 import 'package:calculori/presentation/screens/home_screen.dart';
 import 'package:calculori/presentation/screens/history_screen.dart';
@@ -12,7 +13,11 @@ void main() async {
   // We assume it's the first time if the key doesn't exist or is set to true
   final bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
 
-  runApp(CalculOriApp(isFirstTime: isFirstTime));
+  runApp(
+    ProviderScope(
+      child: CalculOriApp(isFirstTime: isFirstTime),
+    ),
+  );
 }
 
 class CalculOriApp extends StatelessWidget {
