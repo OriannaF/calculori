@@ -6,6 +6,7 @@ class CalculatorState {
   final String productName;
   final double multiplier;
   final String roundingType;
+  final String logicType;
   final List<Map<String, dynamic>> paymentMethods;
 
   CalculatorState({
@@ -13,6 +14,7 @@ class CalculatorState {
     this.productName = '',
     this.multiplier = 2.0,
     this.roundingType = 'Sin redondeo',
+    this.logicType = 'multiplicador',
     this.paymentMethods = const [],
   });
 
@@ -23,6 +25,7 @@ class CalculatorState {
     String? productName,
     double? multiplier,
     String? roundingType,
+    String? logicType,
     List<Map<String, dynamic>>? paymentMethods,
   }) {
     return CalculatorState(
@@ -30,6 +33,7 @@ class CalculatorState {
       productName: productName ?? this.productName,
       multiplier: multiplier ?? this.multiplier,
       roundingType: roundingType ?? this.roundingType,
+      logicType: logicType ?? this.logicType,
       paymentMethods: paymentMethods ?? this.paymentMethods,
     );
   }
@@ -49,10 +53,11 @@ class CalculatorNotifier extends Notifier<CalculatorState> {
     state = state.copyWith(productName: newName);
   }
 
-  void updateSettings(double multiplier, String roundingType, List<Map<String, dynamic>> methods) {
+  void updateSettings(double multiplier, String roundingType, String logicType, List<Map<String, dynamic>> methods) {
     state = state.copyWith(
       multiplier: multiplier,
       roundingType: roundingType,
+      logicType: logicType,
       paymentMethods: methods,
     );
   }

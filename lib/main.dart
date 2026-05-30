@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // <-- 1. NUEVO: Necesario para saber si estás en modo debug (kReleaseMode)
+import 'package:device_preview/device_preview.dart'; // <-- 2. NUEVO: El paquete del marco del celular
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Importamos las pantallas de tu proyecto
@@ -6,33 +8,47 @@ import 'package:calculori/presentation/screens/home_screen.dart';
 import 'package:calculori/presentation/screens/history_screen.dart';
 import 'package:calculori/presentation/screens/onboarding_screen.dart';
 
+Color _parseColor(String hex) {
+  hex = hex.replaceFirst('#', '');
+  if (hex.length == 6) hex = 'FF$hex';
+  return Color(int.parse(hex, radix: 16));
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   final prefs = await SharedPreferences.getInstance();
-  // We assume it's the first time if the key doesn't exist or is set to true
   final bool isFirstTime = prefs.getBool('isFirstTime') ?? true;
+  final Color themeColor = _parseColor(prefs.getString('themeColor') ?? '#27C275');
 
   runApp(
-    ProviderScope(
-      child: CalculOriApp(isFirstTime: isFirstTime),
+    DevicePreview(
+      enabled: !kReleaseMode,
+      builder: (context) => ProviderScope(
+        child: CalculOriApp(isFirstTime: isFirstTime, themeColor: themeColor),
+      ),
     ),
   );
 }
 
 class CalculOriApp extends StatelessWidget {
   final bool isFirstTime;
+  final Color themeColor;
   
-  const CalculOriApp({super.key, required this.isFirstTime});
+  const CalculOriApp({super.key, required this.isFirstTime, required this.themeColor});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
+      
       debugShowCheckedModeBanner: false,
       title: 'CalculOri',
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFF7F9FB),
         fontFamily: 'Hanken Grotesk',
+        colorScheme: ColorScheme.fromSeed(seedColor: themeColor, primary: themeColor),
       ),
       home: isFirstTime ? const OnboardingScreen() : const MainNavigationPage(),
     );

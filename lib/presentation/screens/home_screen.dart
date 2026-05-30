@@ -18,6 +18,15 @@ List<Map<String, dynamic>> globalMetodosCobro = [
   { "id": "3", "nombre": "Mayorista", "porcentaje": -15.0, "icono": "etiqueta" },
 ];
 
+String globalCurrency = 'ARS';
+String globalNumberFormat = 'arg';
+String globalBusinessIcon = '🛍️';
+
+Map<String, String> _currencySymbols = {
+  'ARS': '\$', 'USD': 'USD', 'BRL': 'R\$', 'CLP': '\$',
+  'MXN': '\$', 'COP': '\$', 'EUR': '€',
+};
+
 IconData getIconFromString(String iconName) {
   switch (iconName) {
     case 'billete': return Icons.money_rounded;
@@ -32,14 +41,19 @@ IconData getIconFromString(String iconName) {
 String formatCurrency(num value) {
   bool isNegative = value < 0;
   String str = value.abs().toStringAsFixed(0);
+  String separator = globalNumberFormat == 'us' ? ',' : '.';
   String result = '';
   for (int i = 0; i < str.length; i++) {
     if (i > 0 && (str.length - i) % 3 == 0) {
-      result += '.';
+      result += separator;
     }
     result += str[i];
   }
-  return '\$${isNegative ? '-' : ''}$result';
+  String symbol = _currencySymbols[globalCurrency] ?? '\$';
+  if (globalCurrency == 'USD') {
+    return '${isNegative ? '-' : ''}USD $result';
+  }
+  return '${isNegative ? '-' : ''}$symbol$result';
 }
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -100,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     String savedStoreName = prefs.getString('storeName') ?? '';
     double savedMultiplier = prefs.getDouble('multiplicador') ?? 2.0;
     String savedRounding = prefs.getString('redondeo') ?? 'Sin redondeo';
+    String savedLogicType = prefs.getString('calcMethod') ?? 'multiplicador';
     List<Map<String, dynamic>> savedMethods = List.from(globalMetodosCobro);
 
     final String? metodosJson = prefs.getString('metodosCobro');
@@ -123,19 +138,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
+    String savedCurrency = prefs.getString('currency') ?? 'ARS';
+    String savedFormat = prefs.getString('numberFormat') ?? 'arg';
+    String savedIcon = prefs.getString('businessIcon') ?? '🛍️';
+    String savedExampleProduct = prefs.getString('exampleProduct') ?? 'Remera';
+    String savedExampleCost = prefs.getString('exampleCost') ?? '5000';
+
+    globalCurrency = savedCurrency;
+    globalNumberFormat = savedFormat;
+    globalBusinessIcon = savedIcon;
+
+    double costValue = double.tryParse(savedExampleCost) ?? 1500.0;
+    _costoController.text = costValue.toStringAsFixed(0);
+    _nombreController.text = savedExampleProduct;
+
     setState(() {
       storeName = savedStoreName;
     });
 
     // Sync loaded settings to Riverpod state
-    ref.read(calculatorProvider.notifier).updateSettings(savedMultiplier, savedRounding, savedMethods);
-    ref.read(calculatorProvider.notifier).updateCost(1500.0); // Default placeholder
+    ref.read(calculatorProvider.notifier).updateSettings(savedMultiplier, savedRounding, savedLogicType, savedMethods);
+    ref.read(calculatorProvider.notifier).updateCost(costValue);
+    ref.read(calculatorProvider.notifier).updateProductName(savedExampleProduct);
   }
 
-  Future<void> _saveSettings(double multiplicador, String tipoRedondeo, List<Map<String, dynamic>> metodos) async {
+  Future<void> _saveSettings(double multiplicador, String tipoRedondeo, String logicType, List<Map<String, dynamic>> metodos) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setDouble('multiplicador', multiplicador);
     await prefs.setString('redondeo', tipoRedondeo);
+    await prefs.setString('calcMethod', logicType);
     await prefs.setString('metodosCobro', jsonEncode(metodos));
   }
 
@@ -209,14 +240,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 if (result != null && result is Map) {
                   final newMult = (result['multiplicador'] as num?)?.toDouble() ?? calcState.multiplier;
                   final newRound = result['redondeo'] as String? ?? calcState.roundingType;
+                  final newLogic = result['logicType'] as String? ?? calcState.logicType;
                   List<Map<String, dynamic>> newMethods = calcState.paymentMethods;
                   if (result.containsKey('metodosCobro')) {
                     newMethods = List<Map<String, dynamic>>.from(result['metodosCobro']);
                     globalMetodosCobro = newMethods; // Keep global in sync temporarily
                   }
                   
-                  ref.read(calculatorProvider.notifier).updateSettings(newMult, newRound, newMethods);
-                  _saveSettings(newMult, newRound, newMethods);
+                  ref.read(calculatorProvider.notifier).updateSettings(newMult, newRound, newLogic, newMethods);
+                  _saveSettings(newMult, newRound, newLogic, newMethods);
                 }
               },
             ),
@@ -232,6 +264,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       base: baseMultiplicador,
                       metodosCalculados: metodosCalculados,
                       multiplicador: calcState.multiplier,
+                      logicType: calcState.logicType,
                       onSave: () {
                         setState(() {
                           globalHistorial.insert(0, {
@@ -380,7 +413,7 @@ class HeaderGradientSection extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.calculate_rounded, color: Colors.white, size: 24),
+                        Text(globalBusinessIcon, style: const TextStyle(fontSize: 24)),
                         const SizedBox(width: 8),
                         Text(
                           storeName.isNotEmpty ? '¡Hola! $storeName' : 'CalculOri',
@@ -480,6 +513,7 @@ class PaymentMethodsCard extends StatelessWidget {
   final double base;
   final List<Map<String, dynamic>> metodosCalculados;
   final double multiplicador;
+  final String logicType;
   final VoidCallback onSave;
 
   const PaymentMethodsCard({
@@ -487,14 +521,21 @@ class PaymentMethodsCard extends StatelessWidget {
     required this.base,
     required this.metodosCalculados,
     required this.multiplicador,
+    required this.logicType,
     required this.onSave,
   });
 
   @override
   Widget build(BuildContext context) {
-    String multiplierText = 'x${multiplicador.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '').replaceAll(RegExp(r'0$'), '')}';
-    double margenDouble = multiplicador > 0 ? ((multiplicador - 1) / multiplicador) * 100 : 0;
-    String margenText = '${margenDouble.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}%';
+    String label;
+    if (logicType == 'margen') {
+      double margenDouble = multiplicador > 0 ? ((multiplicador - 1) / multiplicador) * 100 : 0;
+      String margenText = '${margenDouble.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '')}%';
+      label = 'Margen ($margenText)';
+    } else {
+      String multiplierText = 'x${multiplicador.toStringAsFixed(2).replaceAll(RegExp(r'\.00$'), '').replaceAll(RegExp(r'0$'), '')}';
+      label = 'Multiplicador de precio ($multiplierText)';
+    }
 
     return Container(
       width: double.infinity,
@@ -509,33 +550,23 @@ class PaymentMethodsCard extends StatelessWidget {
       child: Column(
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: const Color(0xFF27C275).withValues(alpha: 0.15),
+                child: const Icon(Icons.trending_up, color: Color(0xFF006D3D), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: const Color(0xFF27C275).withValues(alpha: 0.15),
-                    child: const Icon(Icons.trending_up, color: Color(0xFF006D3D), size: 18),
-                  ),
-                  const SizedBox(width: 10),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Multiplicador de precio ($multiplierText)', style: const TextStyle(color: Color(0xFF5A665D), fontSize: 12)),
-                      Text(
-                        formatCurrency(base), // Base multiplicador dinámica
-                        style: const TextStyle(color: Color(0xFF191C1E), fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+                  Text(label, style: const TextStyle(color: Color(0xFF5A665D), fontSize: 12)),
+                  Text(
+                    formatCurrency(base),
+                    style: const TextStyle(color: Color(0xFF191C1E), fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(color: const Color(0xFFF0F2F4), borderRadius: BorderRadius.circular(20)),
-                child: Text('Margen $margenText', style: const TextStyle(color: Color(0xFF3D4A3F), fontSize: 12, fontWeight: FontWeight.w600)),
-              )
             ],
           ),
           const Padding(

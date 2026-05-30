@@ -36,6 +36,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _useWholesale = true;
   final TextEditingController _wholesalePercentController = TextEditingController(text: '-10');
 
+  // State Step 4
+  String _selectedColor = '#27C275';
+  String _selectedIcon = '🛍️';
+
+  // State Step 5
+  final TextEditingController _ivaController = TextEditingController(text: '21');
+  String _selectedCurrency = 'ARS';
+  String _selectedFormat = 'arg';
+
+  // State Step 6
+  final TextEditingController _exampleProductController = TextEditingController(text: 'Remera');
+  final TextEditingController _exampleCostController = TextEditingController(text: '5000');
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -46,11 +59,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _transferPercentController.dispose();
     _cardPercentController.dispose();
     _wholesalePercentController.dispose();
+    _ivaController.dispose();
+    _exampleProductController.dispose();
+    _exampleCostController.dispose();
     super.dispose();
   }
 
   void _nextPage() {
-    if (_currentPage < 2) {
+    if (_currentPage < 5) {
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     } else {
       _finishOnboarding();
@@ -114,7 +130,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setString('storeName', _storeNameController.text.trim());
     await prefs.setDouble('multiplicador', finalMultiplier);
     await prefs.setString('redondeo', _selectedRounding);
+    await prefs.setString('calcMethod', _calcMethod);
     await prefs.setString('metodosCobro', jsonEncode(initialMethods));
+    await prefs.setString('themeColor', _selectedColor);
+    await prefs.setString('businessIcon', _selectedIcon);
+    await prefs.setString('iva', _ivaController.text);
+    await prefs.setString('currency', _selectedCurrency);
+    await prefs.setString('numberFormat', _selectedFormat);
+    await prefs.setString('exampleProduct', _exampleProductController.text);
+    await prefs.setString('exampleCost', _exampleCostController.text);
 
     if (mounted) {
       Navigator.pushReplacement(
@@ -163,7 +187,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Paso ${_currentPage + 1} de 3', style: const TextStyle(color: Color(0xFF5A665D), fontWeight: FontWeight.w600)),
+                        Text('Paso ${_currentPage + 1} de 6', style: const TextStyle(color: Color(0xFF5A665D), fontWeight: FontWeight.w600)),
                         Row(
                           children: [
                             _buildProgressDot(0),
@@ -171,6 +195,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             _buildProgressDot(1),
                             const SizedBox(width: 8),
                             _buildProgressDot(2),
+                            const SizedBox(width: 8),
+                            _buildProgressDot(3),
+                            const SizedBox(width: 8),
+                            _buildProgressDot(4),
+                            const SizedBox(width: 8),
+                            _buildProgressDot(5),
                           ],
                         )
                       ],
@@ -187,6 +217,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _buildStep1(),
                         _buildStep2(),
                         _buildStep3(),
+                        _buildStep4(),
+                        _buildStep5(),
+                        _buildStep6(),
                       ],
                     ),
                   ),
@@ -230,8 +263,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(_currentPage == 2 ? 'Finalizar' : 'Siguiente', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                if (_currentPage == 2) ...[
+                                Text(_currentPage == 5 ? 'Finalizar' : 'Siguiente', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                if (_currentPage == 5) ...[
                                   const SizedBox(width: 8),
                                   const Icon(Icons.check_circle_outline, size: 20),
                                 ]
@@ -448,9 +481,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               const Divider(color: Color(0xFFECEEF0)),
               const SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(inputLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+                  Flexible(
+                    child: Text(inputLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+                  ),
+                  const SizedBox(width: 12),
                   Container(
                     width: 90,
                     decoration: BoxDecoration(
@@ -545,6 +580,329 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               ),
             ),
           )
+        ],
+      ),
+    );
+  }
+
+  // --- STEP 4: PERSONALIZACIÓN VISUAL ---
+
+  static const List<Color> _colorOptions = [
+    Color(0xFF27C275),
+    Color(0xFF4A90D9),
+    Color(0xFF7C4DFF),
+    Color(0xFFFF6B35),
+    Color(0xFFE53935),
+    Color(0xFFE91E8A),
+    Color(0xFF00BCD4),
+    Color(0xFF8D6E63),
+  ];
+
+  static const List<String> _iconOptions = [
+    '🛍️', '👕', '🍕', '💅', '🔧', '📚', '💪', '🎨',
+  ];
+
+  Widget _buildStep4() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Personalizá tu experiencia', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF191C1E), letterSpacing: -0.5)),
+          const SizedBox(height: 8),
+          const Text('Elegí un color principal y un ícono que represente tu negocio.', style: TextStyle(fontSize: 15, color: Color(0xFF3D4A3F))),
+          const SizedBox(height: 32),
+          const Text('Color principal:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: _colorOptions.map((color) {
+              String hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
+              bool isSel = _selectedColor == hex;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedColor = hex),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: isSel ? const Color(0xFF191C1E) : Colors.transparent, width: 3),
+                    boxShadow: isSel ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))] : [],
+                  ),
+                  child: isSel ? const Icon(Icons.check, color: Colors.white, size: 22) : null,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 32),
+          const Text('Ícono del negocio:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: _iconOptions.map((icon) {
+              bool isSel = _selectedIcon == icon;
+              return GestureDetector(
+                onTap: () => setState(() => _selectedIcon = icon),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFFF0FDF4) : const Color(0xFFF7F9FB),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: isSel ? const Color(0xFF27C275) : const Color(0xFFE0E3E5), width: isSel ? 2 : 1),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(icon, style: const TextStyle(fontSize: 24)),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- STEP 5: PREFERENCIAS DE PRECIO ---
+
+  static const List<Map<String, String>> _currencyOptions = [
+    {'code': 'ARS', 'symbol': '\$', 'name': 'Peso ARS'},
+    {'code': 'USD', 'symbol': 'USD', 'name': 'Dólar'},
+    {'code': 'BRL', 'symbol': 'R\$', 'name': 'Real'},
+    {'code': 'CLP', 'symbol': '\$', 'name': 'Peso CLP'},
+    {'code': 'MXN', 'symbol': '\$', 'name': 'Peso MXN'},
+    {'code': 'COP', 'symbol': '\$', 'name': 'Peso COP'},
+    {'code': 'EUR', 'symbol': '€', 'name': 'Euro'},
+  ];
+
+  static const List<Map<String, String>> _formatOptions = [
+    {'id': 'arg', 'label': '1.234,56'},
+    {'id': 'us', 'label': '1,234.56'},
+  ];
+
+  Widget _buildStep5() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Preferencias de precio', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF191C1E), letterSpacing: -0.5)),
+          const SizedBox(height: 8),
+          const Text('Configurá la moneda, el IVA y el formato numérico para tus precios.', style: TextStyle(fontSize: 15, color: Color(0xFF3D4A3F))),
+          const SizedBox(height: 32),
+          const Text('Moneda:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _currencyOptions.map((c) {
+              bool isSel = _selectedCurrency == c['code'];
+              return GestureDetector(
+                onTap: () => setState(() => _selectedCurrency = c['code']!),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFF27C275) : Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: isSel ? const Color(0xFF27C275) : const Color(0xFFE0E3E5)),
+                  ),
+                  child: Text(
+                    '${c['symbol']} - ${c['name']}',
+                    style: TextStyle(
+                      color: isSel ? const Color(0xFF004927) : const Color(0xFF3D4A3F),
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 32),
+          const Text('IVA predeterminado:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('IVA:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+              const SizedBox(width: 12),
+              Container(
+                width: 90,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF2F4F6),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE0E3E5)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _ivaController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        textAlign: TextAlign.center,
+                        textAlignVertical: TextAlignVertical.center,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          isDense: true,
+                          contentPadding: EdgeInsets.symmetric(vertical: 10),
+                        ),
+                      ),
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(right: 12.0),
+                      child: Text('%', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF5A665D))),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          const Text('Formato de números:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: _formatOptions.map((f) {
+              bool isSel = _selectedFormat == f['id'];
+              return GestureDetector(
+                onTap: () => setState(() => _selectedFormat = f['id']!),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSel ? const Color(0xFF27C275) : Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: isSel ? const Color(0xFF27C275) : const Color(0xFFE0E3E5)),
+                  ),
+                  child: Text(
+                    f['label']!,
+                    style: TextStyle(
+                      color: isSel ? const Color(0xFF004927) : const Color(0xFF3D4A3F),
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F4F6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text('💡', style: TextStyle(fontSize: 20)),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Estos valores los vas a poder cambiar después desde la configuración.',
+                    style: TextStyle(color: Color(0xFF5A665D), fontSize: 13, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- STEP 6: PRODUCTO DE EJEMPLO + TIPS ---
+
+  Widget _buildStep6() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('¡Ya casi está!', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF191C1E), letterSpacing: -0.5)),
+          const SizedBox(height: 8),
+          const Text('Configurá un producto de ejemplo para empezar.', style: TextStyle(fontSize: 15, color: Color(0xFF3D4A3F))),
+          const SizedBox(height: 24),
+          const Text('Producto de ejemplo:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _exampleProductController,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              hintText: 'Ej. Remera',
+              filled: true,
+              fillColor: const Color(0xFFF2F4F6),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFF27C275), width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _exampleCostController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            decoration: InputDecoration(
+              hintText: 'Ej. 5000',
+              labelText: 'Costo original (\$)',
+              filled: true,
+              fillColor: const Color(0xFFF2F4F6),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Color(0xFF27C275), width: 2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          const Text('En tu pantalla principal vas a poder:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+          const SizedBox(height: 16),
+          _buildTipCard(Icons.edit_rounded, 'Ingresar el costo de tus productos y ver el precio final automaticamente.'),
+          const SizedBox(height: 12),
+          _buildTipCard(Icons.credit_card_rounded, 'Agregar métodos de cobro con recargos o descuentos (efectivo, tarjeta, etc.).'),
+          const SizedBox(height: 12),
+          _buildTipCard(Icons.share_rounded, 'Compartir el resultado con tus clientes por WhatsApp, redes sociales y más.'),
+          const SizedBox(height: 12),
+          _buildTipCard(Icons.history_rounded, 'Guardar en el historial y consultar tus cálculos anteriores.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTipCard(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F4F6),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: const Color(0xFF27C275), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Color(0xFF5A665D), fontSize: 13, height: 1.4),
+            ),
+          ),
         ],
       ),
     );

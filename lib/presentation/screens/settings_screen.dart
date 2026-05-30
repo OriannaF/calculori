@@ -413,9 +413,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         const Divider(color: Color(0xFFE0E3E5)),
         const SizedBox(height: 16),
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+            Flexible(
+              child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
+            ),
+            const SizedBox(width: 12),
             Container(
               width: 90,
               decoration: BoxDecoration(
