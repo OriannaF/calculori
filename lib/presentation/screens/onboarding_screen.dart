@@ -14,11 +14,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  final ScrollController _step2Ctrl = ScrollController();
+  final ScrollController _step3Ctrl = ScrollController();
+  final ScrollController _step4Ctrl = ScrollController();
+
   // State Step 1
   final TextEditingController _storeNameController = TextEditingController();
 
   // State Step 2
-  String _calcMethod = 'multiplicador'; // 'margen' or 'multiplicador'
+  String _calcMethod = 'multiplicador';
   final TextEditingController _marginController = TextEditingController(text: '200');
   final TextEditingController _multiplierController = TextEditingController(text: '3');
   String _selectedRounding = 'Sin redondeo';
@@ -37,21 +41,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _wholesalePercentController = TextEditingController(text: '-10');
 
   // State Step 4
-  String _selectedColor = '#27C275';
-  String _selectedIcon = '🛍️';
-
-  // State Step 5
   final TextEditingController _ivaController = TextEditingController(text: '21');
   String _selectedCurrency = 'ARS';
   String _selectedFormat = 'arg';
 
-  // State Step 6
-  final TextEditingController _exampleProductController = TextEditingController(text: 'Remera');
-  final TextEditingController _exampleCostController = TextEditingController(text: '5000');
+  ScrollController? _currentScrollController() {
+    switch (_currentPage) {
+      case 1: return _step2Ctrl;
+      case 2: return _step3Ctrl;
+      case 3: return _step4Ctrl;
+      default: return null;
+    }
+  }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _step2Ctrl.dispose();
+    _step3Ctrl.dispose();
+    _step4Ctrl.dispose();
     _storeNameController.dispose();
     _marginController.dispose();
     _multiplierController.dispose();
@@ -60,13 +68,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _cardPercentController.dispose();
     _wholesalePercentController.dispose();
     _ivaController.dispose();
-    _exampleProductController.dispose();
-    _exampleCostController.dispose();
     super.dispose();
   }
 
   void _nextPage() {
-    if (_currentPage < 5) {
+    if (_currentPage < 3) {
+      ScrollController? ctrl = _currentScrollController();
+      if (ctrl != null && ctrl.hasClients && ctrl.offset < ctrl.position.maxScrollExtent - 10) {
+        ctrl.animateTo(
+          ctrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeOut,
+        );
+        return;
+      }
       _pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     } else {
       _finishOnboarding();
@@ -132,13 +147,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setString('redondeo', _selectedRounding);
     await prefs.setString('calcMethod', _calcMethod);
     await prefs.setString('metodosCobro', jsonEncode(initialMethods));
-    await prefs.setString('themeColor', _selectedColor);
-    await prefs.setString('businessIcon', _selectedIcon);
     await prefs.setString('iva', _ivaController.text);
     await prefs.setString('currency', _selectedCurrency);
     await prefs.setString('numberFormat', _selectedFormat);
-    await prefs.setString('exampleProduct', _exampleProductController.text);
-    await prefs.setString('exampleCost', _exampleCostController.text);
 
     if (mounted) {
       Navigator.pushReplacement(
@@ -185,24 +196,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       border: Border(bottom: BorderSide(color: Color(0xFFECEEF0))),
                     ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Paso ${_currentPage + 1} de 6', style: const TextStyle(color: Color(0xFF5A665D), fontWeight: FontWeight.w600)),
-                        Row(
-                          children: [
-                            _buildProgressDot(0),
-                            const SizedBox(width: 8),
-                            _buildProgressDot(1),
-                            const SizedBox(width: 8),
-                            _buildProgressDot(2),
-                            const SizedBox(width: 8),
-                            _buildProgressDot(3),
-                            const SizedBox(width: 8),
-                            _buildProgressDot(4),
-                            const SizedBox(width: 8),
-                            _buildProgressDot(5),
-                          ],
-                        )
+                        _buildProgressDot(0),
+                        const SizedBox(width: 8),
+                        _buildProgressDot(1),
+                        const SizedBox(width: 8),
+                        _buildProgressDot(2),
+                        const SizedBox(width: 8),
+                        _buildProgressDot(3),
                       ],
                     ),
                   ),
@@ -218,8 +220,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         _buildStep2(),
                         _buildStep3(),
                         _buildStep4(),
-                        _buildStep5(),
-                        _buildStep6(),
                       ],
                     ),
                   ),
@@ -263,8 +263,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(_currentPage == 5 ? 'Finalizar' : 'Siguiente', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                                if (_currentPage == 5) ...[
+                                Text(_currentPage == 3 ? 'Finalizar' : 'Siguiente', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                if (_currentPage == 3) ...[
                                   const SizedBox(width: 8),
                                   const Icon(Icons.check_circle_outline, size: 20),
                                 ]
@@ -349,6 +349,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     String formatVal(double v) => v.toStringAsFixed(v.truncateToDouble() == v ? 0 : 2);
 
     return SingleChildScrollView(
+      controller: _step2Ctrl,
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,6 +568,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
           Expanded(
             child: SingleChildScrollView(
+              controller: _step3Ctrl,
               child: Column(
                 children: [
                   _buildPaymentToggleCard('Efectivo', Icons.money_rounded, _useCash, (v) => setState(() => _useCash = v), _cashPercentController),
@@ -585,89 +587,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  // --- STEP 4: PERSONALIZACIÓN VISUAL ---
-
-  static const List<Color> _colorOptions = [
-    Color(0xFF27C275),
-    Color(0xFF4A90D9),
-    Color(0xFF7C4DFF),
-    Color(0xFFFF6B35),
-    Color(0xFFE53935),
-    Color(0xFFE91E8A),
-    Color(0xFF00BCD4),
-    Color(0xFF8D6E63),
-  ];
-
-  static const List<String> _iconOptions = [
-    '🛍️', '👕', '🍕', '💅', '🔧', '📚', '💪', '🎨',
-  ];
-
-  Widget _buildStep4() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Personalizá tu experiencia', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF191C1E), letterSpacing: -0.5)),
-          const SizedBox(height: 8),
-          const Text('Elegí un color principal y un ícono que represente tu negocio.', style: TextStyle(fontSize: 15, color: Color(0xFF3D4A3F))),
-          const SizedBox(height: 32),
-          const Text('Color principal:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: _colorOptions.map((color) {
-              String hex = '#${color.toARGB32().toRadixString(16).padLeft(8, '0').substring(2)}';
-              bool isSel = _selectedColor == hex;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedColor = hex),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: isSel ? const Color(0xFF191C1E) : Colors.transparent, width: 3),
-                    boxShadow: isSel ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 2))] : [],
-                  ),
-                  child: isSel ? const Icon(Icons.check, color: Colors.white, size: 22) : null,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 32),
-          const Text('Ícono del negocio:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: _iconOptions.map((icon) {
-              bool isSel = _selectedIcon == icon;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedIcon = icon),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: isSel ? const Color(0xFFF0FDF4) : const Color(0xFFF7F9FB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: isSel ? const Color(0xFF27C275) : const Color(0xFFE0E3E5), width: isSel ? 2 : 1),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(icon, style: const TextStyle(fontSize: 24)),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- STEP 5: PREFERENCIAS DE PRECIO ---
+  // --- STEP 4: PREFERENCIAS DE PRECIO ---
 
   static const List<Map<String, String>> _currencyOptions = [
     {'code': 'ARS', 'symbol': '\$', 'name': 'Peso ARS'},
@@ -684,8 +604,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     {'id': 'us', 'label': '1,234.56'},
   ];
 
-  Widget _buildStep5() {
+  Widget _buildStep4() {
     return SingleChildScrollView(
+      controller: _step4Ctrl,
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -810,97 +731,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- STEP 6: PRODUCTO DE EJEMPLO + TIPS ---
-
-  Widget _buildStep6() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('¡Ya casi está!', style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF191C1E), letterSpacing: -0.5)),
-          const SizedBox(height: 8),
-          const Text('Configurá un producto de ejemplo para empezar.', style: TextStyle(fontSize: 15, color: Color(0xFF3D4A3F))),
-          const SizedBox(height: 24),
-          const Text('Producto de ejemplo:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _exampleProductController,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              hintText: 'Ej. Remera',
-              filled: true,
-              fillColor: const Color(0xFFF2F4F6),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Color(0xFF27C275), width: 2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _exampleCostController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            decoration: InputDecoration(
-              hintText: 'Ej. 5000',
-              labelText: 'Costo original (\$)',
-              filled: true,
-              fillColor: const Color(0xFFF2F4F6),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(color: Color(0xFF27C275), width: 2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 32),
-          const Text('En tu pantalla principal vas a poder:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF191C1E))),
-          const SizedBox(height: 16),
-          _buildTipCard(Icons.edit_rounded, 'Ingresar el costo de tus productos y ver el precio final automaticamente.'),
-          const SizedBox(height: 12),
-          _buildTipCard(Icons.credit_card_rounded, 'Agregar métodos de cobro con recargos o descuentos (efectivo, tarjeta, etc.).'),
-          const SizedBox(height: 12),
-          _buildTipCard(Icons.share_rounded, 'Compartir el resultado con tus clientes por WhatsApp, redes sociales y más.'),
-          const SizedBox(height: 12),
-          _buildTipCard(Icons.history_rounded, 'Guardar en el historial y consultar tus cálculos anteriores.'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTipCard(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F4F6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: const Color(0xFF27C275), size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(color: Color(0xFF5A665D), fontSize: 13, height: 1.4),
             ),
           ),
         ],

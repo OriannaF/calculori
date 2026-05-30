@@ -1,7 +1,9 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'settings_screen.dart';
+import 'package:calculori/presentation/screens/home_screen.dart';
 
 
 class HistoryScreen extends StatefulWidget {
@@ -168,13 +170,21 @@ class HistoryHeaderSection extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.20), 
                       shape: BoxShape.circle
                     ),
-                    child: IconButton(
+                      child: IconButton(
                       padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 22),
+                      icon: const Icon(Icons.settings, color: Colors.white, size: 20),
                       onPressed: () async {
                         final prefs = await SharedPreferences.getInstance();
                         final double multiplicador = prefs.getDouble('multiplicador') ?? 2.0;
                         final String tipoRedondeo = prefs.getString('redondeo') ?? 'Sin redondeo';
+
+                        List<Map<String, dynamic>> metodos = [];
+                        final String? metodosJson = prefs.getString('metodosCobro');
+                        if (metodosJson != null) {
+                          metodos = (jsonDecode(metodosJson) as List)
+                              .map((e) => Map<String, dynamic>.from(e))
+                              .toList();
+                        }
 
                         if (!context.mounted) return;
 
@@ -184,6 +194,7 @@ class HistoryHeaderSection extends StatelessWidget {
                             builder: (context) => SettingsScreen(
                               initialMultiplier: multiplicador,
                               initialRounding: tipoRedondeo,
+                              initialPaymentMethods: metodos,
                             ),
                           ),
                         );
@@ -191,7 +202,11 @@ class HistoryHeaderSection extends StatelessWidget {
                         if (result != null && result is Map) {
                           await prefs.setDouble('multiplicador', (result['multiplicador'] as num?)?.toDouble() ?? multiplicador);
                           await prefs.setString('redondeo', result['redondeo'] as String? ?? tipoRedondeo);
-                          // globalMetodosCobro is already saved in SharedPreferences inside SettingsScreen
+                          if (result.containsKey('metodosCobro')) {
+                            final newMethods = List<Map<String, dynamic>>.from(result['metodosCobro']);
+                            await prefs.setString('metodosCobro', jsonEncode(newMethods));
+                            globalMetodosCobro = newMethods;
+                          }
                         }
                       },
                     ),

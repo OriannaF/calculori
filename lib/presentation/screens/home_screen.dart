@@ -3,12 +3,14 @@ import 'dart:ui';
 import 'package:calculori/presentation/screens/settings_screen.dart';
 import 'package:calculori/presentation/screens/history_screen.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:calculori/presentation/providers/calculator_provider.dart';
 import 'package:calculori/presentation/widgets/share_button.dart';
 import 'package:calculori/core/utils/price_calculator.dart';
+import 'package:image_picker/image_picker.dart';
 
 // Top-level variable so both the home screen and main tab can access it for now
 List<Map<String, dynamic>> globalHistorial = [];
@@ -20,7 +22,6 @@ List<Map<String, dynamic>> globalMetodosCobro = [
 
 String globalCurrency = 'ARS';
 String globalNumberFormat = 'arg';
-String globalBusinessIcon = '🛍️';
 
 Map<String, String> _currencySymbols = {
   'ARS': '\$', 'USD': 'USD', 'BRL': 'R\$', 'CLP': '\$',
@@ -65,6 +66,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String storeName = '';
+  String profileImagePath = '';
   late TextEditingController _costoController;
   late TextEditingController _nombreController;
   final FocusNode _costoFocusNode = FocusNode();
@@ -112,6 +114,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     String savedStoreName = prefs.getString('storeName') ?? '';
+    String savedProfileImage = prefs.getString('profileImagePath') ?? '';
     double savedMultiplier = prefs.getDouble('multiplicador') ?? 2.0;
     String savedRounding = prefs.getString('redondeo') ?? 'Sin redondeo';
     String savedLogicType = prefs.getString('calcMethod') ?? 'multiplicador';
@@ -140,13 +143,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     String savedCurrency = prefs.getString('currency') ?? 'ARS';
     String savedFormat = prefs.getString('numberFormat') ?? 'arg';
-    String savedIcon = prefs.getString('businessIcon') ?? '🛍️';
     String savedExampleProduct = prefs.getString('exampleProduct') ?? 'Remera';
     String savedExampleCost = prefs.getString('exampleCost') ?? '5000';
 
     globalCurrency = savedCurrency;
     globalNumberFormat = savedFormat;
-    globalBusinessIcon = savedIcon;
 
     double costValue = double.tryParse(savedExampleCost) ?? 1500.0;
     _costoController.text = costValue.toStringAsFixed(0);
@@ -154,6 +155,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     setState(() {
       storeName = savedStoreName;
+      profileImagePath = savedProfileImage;
     });
 
     // Sync loaded settings to Riverpod state
@@ -188,6 +190,145 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     await prefs.setString('historial', jsonEncode(jsonList));
   }
 
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('profileImagePath', image.path);
+      setState(() {
+        profileImagePath = image.path;
+      });
+    }
+  }
+
+  Future<void> _removeImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('profileImagePath');
+    setState(() {
+      profileImagePath = '';
+    });
+  }
+
+  Future<void> _saveStoreName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('storeName', name);
+    setState(() {
+      storeName = name;
+    });
+  }
+
+  void _showEditProfileSheet() {
+    final nameController = TextEditingController(text: storeName);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+            left: 24,
+            right: 24,
+            top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Editar perfil',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF191C1E)),
+              ),
+              const SizedBox(height: 24),
+              const Text('Nombre del local', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF3D4A3F))),
+              const SizedBox(height: 8),
+              TextField(
+                controller: nameController,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                decoration: InputDecoration(
+                  hintText: 'Ej. Mi Tiendita',
+                  filled: true,
+                  fillColor: const Color(0xFFF2F4F6),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: Color(0xFF27C275), width: 2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF006D3D),
+                    side: const BorderSide(color: Color(0xFF27C275)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () {
+                    _pickImage();
+                    Navigator.pop(ctx);
+                  },
+                  icon: const Icon(Icons.camera_alt_rounded),
+                  label: const Text('Cambiar foto', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              if (profileImagePath.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      _removeImage();
+                      Navigator.pop(ctx);
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Eliminar foto', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF27C275),
+                    foregroundColor: const Color(0xFF004927),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () {
+                    _saveStoreName(nameController.text.trim());
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Guardar', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _costoController.dispose();
@@ -220,6 +361,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           children: [
             HeaderGradientSection(
               storeName: storeName,
+              profileImagePath: profileImagePath,
               costoController: _costoController,
               nombreController: _nombreController,
               costoFocusNode: _costoFocusNode,
@@ -227,6 +369,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               onCostoChanged: (value) {
                 ref.read(calculatorProvider.notifier).updateCost(double.tryParse(value) ?? 0.0);
               },
+              onProfileTap: _showEditProfileSheet,
               onSettingsPressed: () async {
                 final result = await Navigator.push(
                   context,
@@ -321,21 +464,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 // --- 1. SECCIÓN SUPERIOR: GRADIENTE, ORBES, LOGO Y PRECIO ---
 class HeaderGradientSection extends StatelessWidget {
   final String storeName;
+  final String profileImagePath;
   final TextEditingController costoController;
   final TextEditingController nombreController;
   final FocusNode costoFocusNode;
   final FocusNode nombreFocusNode;
   final void Function(String) onCostoChanged;
+  final VoidCallback onProfileTap;
   final VoidCallback onSettingsPressed;
 
   const HeaderGradientSection({
     super.key,
     required this.storeName,
+    required this.profileImagePath,
     required this.costoController,
     required this.nombreController,
     required this.costoFocusNode,
     required this.nombreFocusNode,
     required this.onCostoChanged,
+    required this.onProfileTap,
     required this.onSettingsPressed,
   });
 
@@ -411,15 +558,36 @@ class HeaderGradientSection extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Text(globalBusinessIcon, style: const TextStyle(fontSize: 24)),
-                        const SizedBox(width: 8),
-                        Text(
-                          storeName.isNotEmpty ? '¡Hola! $storeName' : 'CalculOri',
-                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                      ],
+                    GestureDetector(
+                      onTap: onProfileTap,
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 20,
+                            backgroundColor: Colors.white.withValues(alpha: 0.20),
+                            backgroundImage: profileImagePath.isNotEmpty
+                                ? FileImage(File(profileImagePath))
+                                : null,
+                            child: profileImagePath.isEmpty
+                                ? const Icon(Icons.person, color: Colors.white, size: 22)
+                                : null,
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Hola,',
+                                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                              Text(
+                                storeName.isNotEmpty ? storeName : 'Mi Negocio',
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                     Container(
                       width: 40,
@@ -431,7 +599,7 @@ class HeaderGradientSection extends StatelessWidget {
                       child: IconButton(
                         padding: EdgeInsets.zero,
                         icon: const Icon(Icons.settings, color: Colors.white, size: 20),
-                        onPressed: onSettingsPressed, // Ejecuta la función de navegación reactiva
+                        onPressed: onSettingsPressed,
                       ),
                     ),
                   ],
